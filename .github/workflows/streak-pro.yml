@@ -1,8 +1,11 @@
 name: Pro GitHub Streak Keeper
 
+permissions:
+  contents: write
+
 on:
   schedule:
-    - cron: '0 14 * * *'  # 1:00 AM Melbourne time
+    - cron: '0 14 * * *'  # Runs daily at 1:00 AM Melbourne time
   workflow_dispatch:
 
 jobs:
@@ -14,13 +17,11 @@ jobs:
         id: activity
         run: |
           USERNAME=${{ github.actor }}
-
           TODAY=$(date -u +"%Y-%m-%d")
 
           echo "Checking activity for $USERNAME on $TODAY"
 
-          RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            https://api.github.com/users/$USERNAME/events)
+          RESPONSE=$(curl -s https://api.github.com/users/$USERNAME/events)
 
           COUNT=$(echo "$RESPONSE" | jq "[.[] | select(.created_at | startswith(\"$TODAY\"))] | length")
 
@@ -33,18 +34,18 @@ jobs:
           fi
 
       - name: Checkout repo
-        if: always()
+        if: steps.activity.outputs.has_activity == 'false'
         uses: actions/checkout@v3
 
       - name: Commit if no activity
-        if: always()
+        if: steps.activity.outputs.has_activity == 'false'
         run: |
           echo "No activity detected. Saving streak..."
           date >> streak.txt
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add streak.txt
-          git commit -m "Auto streak save"
+          git commit -m "Auto streak save" || echo "No changes"
           git push
 
       - name: Skip commit
