@@ -33,11 +33,11 @@ jobs:
           fi
 
       - name: Checkout repo
-        if: steps.activity.outputs.has_activity == 'false'
+        if: always()
         uses: actions/checkout@v3
 
       - name: Commit if no activity
-        if: steps.activity.outputs.has_activity == 'false'
+        if: always()
         run: |
           echo "No activity detected. Saving streak..."
           date >> streak.txt
