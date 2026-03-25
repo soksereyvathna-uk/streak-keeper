@@ -34,17 +34,17 @@ jobs:
           fi
 
       - name: Checkout repo
-        if: always()
+        if: steps.activity.outputs.has_activity == 'false'
         uses: actions/checkout@v3
       - name: Send Telegram alert
-        if: always()
+        if: steps.activity.outputs.has_activity == 'false'
         run: |
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
           -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
           -d text="⚠️ No GitHub activity today! Your streak is at risk!"
 
       - name: Commit if no activity
-        if: always()
+        if: steps.activity.outputs.has_activity == 'false'
         run: |
           echo "No activity detected. Saving streak..."
           date >> streak.txt
