@@ -49,11 +49,11 @@ jobs:
           echo "No activity detected. Saving streak..."
           date >> streak.txt
           git config user.name "github-actions"
-          git config user.email "actions@github.com"
+          git config user.email "soksereyvathna.uk@gmail.com"
           git add streak.txt
           git commit -m "Auto streak save" || echo "No changes"
           git push
 
       - name: Skip commit
         if: steps.activity.outputs.has_activity == 'true'
-        run: echo "You already contributed today 🎉"
+        run: echo "You already contributed today!"
