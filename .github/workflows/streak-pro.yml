@@ -5,7 +5,9 @@ permissions:
 
 on:
   schedule:
+    # Runs daily at 10:00 AM UTC
     - cron: '0 10 * * *'
+
   workflow_dispatch:
 
 jobs:
@@ -13,20 +15,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      # Checkout repository properly
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Check GitHub activity safely
       - name: Check GitHub activity
         id: activity
         run: |
-          USERNAME=${{ github.actor }}
+          USERNAME="${{ github.actor }}"
           TODAY=$(date -u +"%Y-%m-%d")
 
           echo "Checking activity for $USERNAME on $TODAY"
 
-          RESPONSE=$(curl -s https://api.github.com/users/$USERNAME/events)
+          RESPONSE=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/users/$USERNAME/events")
 
-          COUNT=$(echo "$RESPONSE" | jq "[.[] | select(.created_at | startswith(\"$TODAY\"))] | length")
+          echo "$RESPONSE" > response.json
+
+          # Validate API response safely
+          if jq -e 'type == "array"' response.json > /dev/null; then
+            COUNT=$(jq --arg TODAY "$TODAY" \
+              '[.[] | select(.created_at | startswith($TODAY))] | length' \
+              response.json)
+          else
+            echo "GitHub API returned unexpected response"
+            cat response.json
+            COUNT=0
+          fi
 
           echo "Activity count: $COUNT"
 
@@ -36,24 +54,33 @@ jobs:
             echo "has_activity=false" >> $GITHUB_OUTPUT
           fi
 
+      # Telegram notification
       - name: Send Telegram alert
         if: steps.activity.outputs.has_activity == 'false'
         run: |
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
-          -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-          -d text="⚠️ No GitHub activity today! Your streak is at risk!"
+          curl -s -X POST \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="⚠️ No GitHub activity detected today! Auto-saving your streak."
 
-      - name: Commit if no activity
+      # Auto commit to preserve streak
+      - name: Auto commit if no activity
         if: steps.activity.outputs.has_activity == 'false'
         run: |
-          echo "No activity detected. Saving streak..."
-          date >> streak.txt
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add streak.txt
-          git commit -m "Auto streak save" || exit 0
-          git push
+          echo "No activity detected. Creating streak commit..."
 
+          echo "$(date -u)" >> streak.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add streak.txt
+
+          git commit -m "Auto streak save $(date -u +"%Y-%m-%d")" || exit 0
+
+          git push origin main
+
+      # Skip if activity already exists
       - name: Skip commit
         if: steps.activity.outputs.has_activity == 'true'
-        run: echo "You already contributed today!"
+        run: echo "GitHub activity already detected today. No commit needed."
