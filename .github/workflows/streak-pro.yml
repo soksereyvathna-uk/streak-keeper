@@ -1,11 +1,14 @@
 name: Pro GitHub Streak Keeper
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: write
 
 on:
   schedule:
-    # Runs daily at 10:00 AM UTC
+    # Runs daily at 10:00 UTC
     - cron: '0 10 * * *'
 
   workflow_dispatch:
@@ -15,9 +18,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repository properly
+      # Checkout repository
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       # Check GitHub activity safely
       - name: Check GitHub activity
@@ -35,13 +38,13 @@ jobs:
 
           echo "$RESPONSE" > response.json
 
-          # Validate API response safely
+          # Verify response is valid JSON array
           if jq -e 'type == "array"' response.json > /dev/null; then
             COUNT=$(jq --arg TODAY "$TODAY" \
               '[.[] | select(.created_at | startswith($TODAY))] | length' \
               response.json)
           else
-            echo "GitHub API returned unexpected response"
+            echo "Unexpected GitHub API response:"
             cat response.json
             COUNT=0
           fi
@@ -54,7 +57,7 @@ jobs:
             echo "has_activity=false" >> $GITHUB_OUTPUT
           fi
 
-      # Telegram notification
+      # Telegram notification if inactive
       - name: Send Telegram alert
         if: steps.activity.outputs.has_activity == 'false'
         run: |
@@ -63,7 +66,7 @@ jobs:
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -d text="⚠️ No GitHub activity detected today! Auto-saving your streak."
 
-      # Auto commit to preserve streak
+      # Auto-save streak with commit
       - name: Auto commit if no activity
         if: steps.activity.outputs.has_activity == 'false'
         run: |
@@ -80,7 +83,7 @@ jobs:
 
           git push origin main
 
-      # Skip if activity already exists
+      # Skip commit if activity already exists
       - name: Skip commit
         if: steps.activity.outputs.has_activity == 'true'
         run: echo "GitHub activity already detected today. No commit needed."
