@@ -5,7 +5,7 @@ permissions:
 
 on:
   schedule:
-    - cron: '0 10 * * *'  # Runs daily at 10:00 PM Melbourne time
+    - cron: '0 10 * * *'
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check GitHub contributions via API
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Check GitHub activity
         id: activity
         run: |
           USERNAME=${{ github.actor }}
@@ -33,9 +36,6 @@ jobs:
             echo "has_activity=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Checkout repo
-        if: steps.activity.outputs.has_activity == 'false'
-        uses: actions/checkout@v3
       - name: Send Telegram alert
         if: steps.activity.outputs.has_activity == 'false'
         run: |
@@ -49,9 +49,9 @@ jobs:
           echo "No activity detected. Saving streak..."
           date >> streak.txt
           git config user.name "github-actions"
-          git config user.email "soksereyvathna.uk@gmail.com"
+          git config user.email "github-actions@github.com"
           git add streak.txt
-          git commit -m "Auto streak save" || echo "No changes"
+          git commit -m "Auto streak save" || exit 0
           git push
 
       - name: Skip commit
