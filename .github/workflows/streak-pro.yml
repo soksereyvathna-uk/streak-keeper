@@ -64,7 +64,7 @@ jobs:
           curl -s -X POST \
             "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="⚠️ No GitHub activity detected today! Auto-saving your streak."
+            -d text="⚠️ No GitHub activity detected today! Auto saving your streak."
 
       # Auto-save streak with commit
       - name: Auto commit if no activity
